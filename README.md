@@ -1,7 +1,20 @@
 # Bull Shit Build System
 Minimal Build System implemented in C.
 
-## TODO: Syntax
+``` asm
+CFLAGS = -Wall -Wextra
+LFLAGS = -Wall
+	
+label build in
+	ls
+end
+	
+label build in
+	echo "hello moto"
+	cat -n bsfile
+	echo ""
+end
+```
 
 ## Quick Start
 ``` bash

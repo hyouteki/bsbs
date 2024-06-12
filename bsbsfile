@@ -1,0 +1,9 @@
+CC = gcc
+CFLAGS = -Wall -Wextra
+Log = Verbose
+	
+label build in
+	$CC hello.c -o hello $CFLAGS
+	./hello
+	rm -r hello
+end

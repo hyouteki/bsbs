@@ -2,17 +2,14 @@
 Minimal Build System implemented in C.
 
 ``` asm
+CC = gcc
 CFLAGS = -Wall -Wextra
-LFLAGS = -Wall
+Log = Verbose
 	
 label build in
-	ls
-end
-	
-label build in
-	echo "hello moto"
-	cat -n bsfile
-	echo ""
+    $CC hello.c -o hello $CFLAGS
+    ./hello
+    rm -r hello
 end
 ```
 
@@ -20,4 +17,5 @@ end
 ``` bash
 chmod +x build.sh
 ./build.sh
+./bsbs
 ```

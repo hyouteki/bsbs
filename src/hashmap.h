@@ -5,6 +5,7 @@
 #include "helper.h"
 
 #define Bsbs_Hashmap_Size 2048
+#define Bsbs_Min(a, b) (a < b? a: b)
 
 typedef struct Bsbs_Hashmap_Entry {
 	char *query;

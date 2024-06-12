@@ -11,6 +11,7 @@ char *Bsbs_FetchUntil(char **, char);
 void Bsbs_RemoveSpecial(char **);
 int Bsbs_StartsWith(char *, char *);
 void Bsbs_RemoveTrailing(char **, char);
+int Bsbs_CharPresent(char *, char);
 
 static int Bsbs_IsBlankChar(char ch) {
 	switch (ch) {
@@ -72,6 +73,13 @@ void Bsbs_RemoveTrailing(char **text, char delim) {
 	char *end = *text + strlen(*text)-1;
     while (end > *text && *end == delim) end--;
     *(end+1) = 0;
+}
+
+int Bsbs_CharPresent(char *text, char ch) {
+	char *start = text;
+	while (*start && *start != ch) start++;
+	if (!*start) return -1;
+	return start-text;
 }
 
 #endif // BSBS_STRING_H_

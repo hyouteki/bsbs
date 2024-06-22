@@ -2,15 +2,19 @@
 Minimal Build System implemented in C.
 
 ``` asm
-CC = gcc
-CFLAGS = -Wall -Wextra
-Log = Verbose
+DEF CC = gcc
+DEF CFLAGS = -Wall -Wextra
+DEF Log = Verbose
 
-label build in
-    $CC hello.c -o hello $CFLAGS
-    ./hello
-    rm -r hello
-end
+SECTION include {
+	...
+}
+
+LABEL build {
+    RUN $CC hello.c -o hello $CFLAGS
+    RUN ./hello
+    RUN rm -r hello
+}
 ```
 
 ## Quick Start

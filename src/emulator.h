@@ -20,7 +20,7 @@ typedef struct Bsbs_Context {
 } Bsbs_Context;
 
 static void Bsbs_PreprocessCmd(Bsbs_Hashmap *, Bsbs_Stmt_Cmd *);
-static void Bsbs_ProcessDef(char *, char *, unsigned int);
+static void Bsbs_ProcessDef(char *, char *, size_t);
 
 void Bsbs_Emulator(Bsbs_Stmt *, Bsbs_Context);
 
@@ -32,14 +32,14 @@ static void Bsbs_PreprocessCmd(Bsbs_Hashmap *hashmap, Bsbs_Stmt_Cmd *cmd) {
 		char *tmp = strdup(ppCmd+i+1);
 		char *name = Bsbs_FetchUntil(&tmp, ' ');
 		if (!Bsbs_Hashmap_Find(hashmap, name))
-				ErrorLine(cmd->lineno, "variable '%s' does not exist", name);
+			ErrorLine((size_t)0, "variable '%s' does not exist", name);
 		strcpy(ppCmd+i, Bsbs_Hashmap_Lookup(hashmap, name));
 		strcpy(ppCmd+strlen(ppCmd), tmp);
 	}
 	cmd->cmd = ppCmd;
 }
 
-static void Bsbs_ProcessDef(char *key, char *value, unsigned int lineno) {
+static void Bsbs_ProcessDef(char *key, char *value, size_t lineno) {
 	if (strcmp(key, "Log") == 0) {
 		if (strcmp(value, "None") == 0) LogLevel = Bsbs_Log_Level_None;
 		else if (strcmp(value, "Verbose") == 0) LogLevel = Bsbs_Log_Level_Verbose;
@@ -58,16 +58,17 @@ void Bsbs_Emulator(Bsbs_Stmt *stmts, Bsbs_Context ctx) {
 			Bsbs_Hashmap_Insert(&hashmap, stmt->def->name, stmt->def->value);
 			Bsbs_ProcessDef(stmt->def->name, stmt->def->value, stmt->lineno);
 			break;
+		case Bsbs_StmtType_Cmd:
+			Bsbs_PreprocessCmd(&hashmap, stmt->cmd);
+			if (LogLevel == Bsbs_Log_Level_Verbose) printf("+ %s\n", stmt->cmd->cmd);
+			system(stmt->cmd->cmd);
+			break;
 		case Bsbs_StmtType_Label:
 			if (strcmp(stmt->label->name, ctx.label) != 0) break;
-			Bsbs_Stmt_Cmd *cmd = stmt->label->cmds;
-			while (cmd) {
-				Bsbs_PreprocessCmd(&hashmap, cmd);
-				if (LogLevel == Bsbs_Log_Level_Verbose) printf("+ %s\n", cmd->cmd);
-				system(cmd->cmd);
-				cmd = cmd->next;
-			}
+			Bsbs_Emulator(stmt->label->stmts, ctx);
 			break;
+		default:
+			
 		}	
 		stmt = stmt->next;
 	}

@@ -1,12 +1,14 @@
+DEF Log = Verbose
 DEF CC = gcc
 DEF CFLAGS = -Wall -Wextra
-DEF Log = Verbose
-
-SECTION include {
-}
+DEF BUILD_NAME = hello
 
 LABEL build {
-    RUN $CC hello.c -o hello $CFLAGS
+	RUN $CC main.c -o $BUILD_NAME $CFLAGS
+}
+
+LABEL hello {
+	RUN $CC hello.c -o hello $CFLAGS
     RUN ./hello
     RUN rm -r hello
 }

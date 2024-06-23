@@ -1,41 +1,43 @@
 # Bull Shit Build System
 Minimal Build System implemented in C.
 
-``` asm
+``` makefile
+DEF Log = Verbose
 DEF CC = gcc
 DEF CFLAGS = -Wall -Wextra
-DEF Log = Verbose
-
-SECTION include {
-	...
-}
+DEF BUILD_NAME = hello
 
 LABEL build {
-    RUN $CC hello.c -o hello $CFLAGS
+	RUN $CC main.c -o $BUILD_NAME $CFLAGS
+}
+
+LABEL hello {
+	RUN $CC hello.c -o hello $CFLAGS
     RUN ./hello
     RUN rm -r hello
 }
 ```
 
 ## Quick Start
+- Build the project
 ``` bash
-chmod +x build.sh
-./build.sh
-./bsbs
+gcc main.c -Wall -Wextra -o bsbs
+```
+- Build the example file 'hello'
+``` bash
+./bsbs hello
+```
+- Build the project but using *bsbs*.
+``` bash
+./bsbs build
 ```
 
 ``` console
-1    CC = gcc
-2    CFLAGS = -Wall -Wextra
-3    Log = Verbose
-5    label build in
-6        $CC hello.c -o hello $CFLAGS
-7        ./hello
-8        rm -r hello
-9    end
++ CC = gcc
++ CFLAGS = -Wall -Wextra
++ BUILD_NAME = hello
 + gcc hello.c -o hello -Wall -Wextra
 + ./hello
 Hello moto
 + rm -r hello
-
 ```

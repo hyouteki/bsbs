@@ -49,13 +49,28 @@ typedef struct Bsbs_Stmt {
 	};
 	struct Bsbs_Stmt *next;
 	size_t lineno;
+	const char *filepath;
 } Bsbs_Stmt;
 
 static char *Bsbs_StmtType_ToString(Bsbs_StmtType);
 static void Bsbs_Stmt_Add(Bsbs_Stmt **, Bsbs_Stmt *);
+static void PrintIndent(size_t, size_t);
+static void Bsbs_Stmt_Print_(Bsbs_Stmt *, size_t);
 
 void Bsbs_ParseFile(char *, Bsbs_Stmt **);
 void Bsbs_Stmt_Print(Bsbs_Stmt *);
+
+#define Bsbs_Stmt_Error(stmt, msg) ({printf("%s:%d:0: function: %s\n" \
+				"%s:%zu:0: error: %s\n", __FILE__, __LINE__, __FUNCTION__, \
+				stmt->filepath, stmt->lineno, msg); exit(EXIT_FAILURE);})
+
+#define Bsbs_Stmt_ErrorFmt(stmt, msg, ...) ({printf("%s:%d:0: function: %s\n" \
+				"%s:%zu:0: error: "msg"\n", __FILE__, __LINE__, __FUNCTION__, \
+				stmt->filepath, stmt->lineno, __VA_ARGS__); exit(EXIT_FAILURE);})
+
+#define Bsbs_Stmt_ErrorFmtExitCode(stmt, exitcode, msg, ...) \
+	({printf("%s:%d:0: function: %s\n%s:%zu:0: error: "msg"\n", __FILE__, __LINE__, \
+			 __FUNCTION__, stmt->filepath, stmt->lineno, __VA_ARGS__); exit(exitcode);})
 
 static char *Bsbs_StmtType_ToString(Bsbs_StmtType type) {
 	switch (type) {
@@ -84,7 +99,7 @@ static void Bsbs_Stmt_Add(Bsbs_Stmt **stmts, Bsbs_Stmt *stmt) {
 
 void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
     FILE *file = fopen(filename, "r");
-    if (!file) Error("could not open file `%s`", filename);
+    if (!file) Error("could not open file '%s'", filename);
 	char *line = (char *)malloc(sizeof(char)*Line_Capacity);
 	*stmts = NULL;
 	int addToInnerScope = 0;
@@ -97,55 +112,56 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 		char *ptr = line;
 		Bsbs_Trim(&ptr);
 		if (strlen(ptr) == 0) continue;
+		Bsbs_Stmt *stmt = (Bsbs_Stmt *)malloc(sizeof(Bsbs_Stmt));
+		stmt->lineno = lineno;
+		stmt->filepath = strdup(filename);
+		stmt->next= NULL;
 		if (Bsbs_StartsWith(ptr, "LABEL")) {
-			/*
-			 * TODO: error for label inside label
-			 */
+			if (labelStmt != NULL) Bsbs_Stmt_Error(stmt, "found unsupported nested LABELs");
 			ptr += strlen("LABEL");
 			Bsbs_Trim(&ptr);
 			char *name = Bsbs_FetchUntil(&ptr, ' ');
 			Bsbs_Trim(&ptr);
 			if (!Bsbs_StartsWith(ptr, "{"))
-				ErrorLine(lineno, "expected token '{' after LABEL name '%s'", name);
+				Bsbs_Stmt_ErrorFmt(stmt, "expected token '{' after LABEL name '%s'", name);
 			ptr += strlen("{");
 			Bsbs_Trim(&ptr);
-			if (strlen(ptr)) ErrorLine(lineno, "invalid token '%s' after token '{'", ptr);
+			if (strlen(ptr))
+				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '{'", ptr);
 			type = Bsbs_StmtType_Label;
-			labelStmt = (Bsbs_Stmt *)malloc(sizeof(Bsbs_Stmt));
+			labelStmt = stmt;
 			labelStmt->type = type;
 			labelStmt->label = (Bsbs_Stmt_Label *)malloc(sizeof(Bsbs_Stmt_Label));
 			labelStmt->label->name = name;
-			labelStmt->lineno = lineno;
 			labelStmt->label->stmts = NULL;
-			labelStmt->next = NULL;
 			addToInnerScope = 1;
 			continue;
 		}
 		if (Bsbs_StartsWith(ptr, "SECTION")) {
+			if (sectionStmt != NULL)
+				Bsbs_Stmt_Error(stmt, "found unsupported nested SECTIONs");
 			ptr += strlen("SECTION");
 			Bsbs_Trim(&ptr);
 			char *name = Bsbs_FetchUntil(&ptr, ' ');
 			Bsbs_Trim(&ptr);
 			if (!Bsbs_StartsWith(ptr, "{"))
-				ErrorLine(lineno, "expected token '{' after SECTION name '%s'", name);
+				Bsbs_Stmt_ErrorFmt(stmt, "expected token '{' after SECTION name '%s'", name);
 			ptr += strlen("{");
 			Bsbs_Trim(&ptr);
-			if (strlen(ptr)) ErrorLine(lineno, "invalid token '%s' after token '{'", ptr);
+			if (strlen(ptr))
+				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '{'", ptr);
 			type = Bsbs_StmtType_Section;
-			sectionStmt = (Bsbs_Stmt *)malloc(sizeof(Bsbs_Stmt));
+			sectionStmt = stmt;
 			sectionStmt->type = type;
 			sectionStmt->section = (Bsbs_Stmt_Section *)malloc(sizeof(Bsbs_Stmt_Section));
 			sectionStmt->section->name = name;
-			sectionStmt->lineno = lineno;
 			sectionStmt->section->stmts = NULL;
-			sectionStmt->next = NULL;
 			addToInnerScope = 1;
 			continue;
 		}
 		if (Bsbs_StartsWith(ptr, "DEF")) {
 			ptr += strlen("DEF");
 			Bsbs_Trim(&ptr);
-			Bsbs_Stmt *stmt = (Bsbs_Stmt *)malloc(sizeof(Bsbs_Stmt));
 			stmt->type = Bsbs_StmtType_Def;
 			stmt->def = (Bsbs_Stmt_Def *)malloc(sizeof(Bsbs_Stmt_Def));
 			stmt->def->name = Bsbs_FetchUntil(&ptr, '=');
@@ -153,7 +169,6 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 			Bsbs_RemoveSpecial(&ptr);
 			Bsbs_Trim(&ptr);
 			stmt->def->value = strdup(ptr);
-			stmt->lineno = lineno;
 			if (addToInnerScope) {
 				switch (type) {
 				case Bsbs_StmtType_Label:
@@ -170,11 +185,9 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 		if (Bsbs_StartsWith(ptr, "RUN")) {
 			ptr += strlen("RUN");
 			Bsbs_Trim(&ptr);
-			Bsbs_Stmt *stmt = (Bsbs_Stmt *)malloc(sizeof(Bsbs_Stmt));
 			stmt->type = Bsbs_StmtType_Cmd;
 			stmt->cmd = (Bsbs_Stmt_Cmd *)malloc(sizeof(Bsbs_Stmt_Cmd));
 			stmt->cmd->cmd = strdup(ptr);
-			stmt->lineno = lineno;
 			if (addToInnerScope) {
 				switch (type) {
 				case Bsbs_StmtType_Label:
@@ -191,7 +204,8 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 		if (Bsbs_StartsWith(ptr, "}")) {
 			ptr += strlen("}");
 			Bsbs_Trim(&ptr);
-			if (strlen(ptr)) ErrorLine(lineno, "invalid token '%s' after token '}'", ptr);
+			if (strlen(ptr))
+				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '}'", ptr);
 			switch (type) {
 			case Bsbs_StmtType_Label:
 				labelStmt->label->endLineno = lineno;
@@ -204,7 +218,7 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 				sectionStmt = NULL;
 				break;
 			default:
-				ErrorLine(lineno, "expected statement type '%s | %s' got '%s'",
+				Bsbs_Stmt_ErrorFmt(stmt, "expected statement type '%s | %s' got '%s'",
 						  Bsbs_StmtType_ToString(Bsbs_StmtType_Label),
 						  Bsbs_StmtType_ToString(Bsbs_StmtType_Section),
 						  Bsbs_StmtType_ToString(type));

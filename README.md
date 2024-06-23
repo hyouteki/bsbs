@@ -5,7 +5,7 @@ Minimal Build System implemented in C.
 DEF Log = Verbose
 DEF CC = gcc
 DEF CFLAGS = -Wall -Wextra
-DEF BUILD_NAME = hello
+DEF BUILD_NAME = bsbs
 
 LABEL build {
     RUN $CC main.c -o $BUILD_NAME $CFLAGS

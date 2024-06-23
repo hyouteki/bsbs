@@ -27,11 +27,6 @@ gcc main.c -Wall -Wextra -o bsbs
 ``` bash
 ./bsbs hello
 ```
-- Build the project but using *bsbs*.
-``` bash
-./bsbs build
-```
-
 ``` console
 + CC = gcc
 + CFLAGS = -Wall -Wextra
@@ -40,4 +35,15 @@ gcc main.c -Wall -Wextra -o bsbs
 + ./hello
 Hello moto
 + rm -r hello
+```
+
+- Build the project but using *bsbs*.
+``` bash
+./bsbs build
+```
+``` console
++ CC = gcc
++ CFLAGS = -Wall -Wextra
++ BUILD_NAME = hello
++ gcc main.c -o hello -Wall -Wextra
 ```

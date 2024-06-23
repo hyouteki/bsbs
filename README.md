@@ -8,11 +8,11 @@ DEF CFLAGS = -Wall -Wextra
 DEF BUILD_NAME = hello
 
 LABEL build {
-	RUN $CC main.c -o $BUILD_NAME $CFLAGS
+    RUN $CC main.c -o $BUILD_NAME $CFLAGS
 }
 
 LABEL hello {
-	RUN $CC hello.c -o hello $CFLAGS
+    RUN $CC hello.c -o hello $CFLAGS
     RUN ./hello
     RUN rm -r hello
 }

@@ -3,9 +3,16 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <sys/wait.h>
 #include "parser.h"
 #include "hashmap.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#elif __linux__
+#include <sys/wait.h>
+#else
+#error "error: unsupported OS; supported OS (Windows and GNU/Linux)"
+#endif
 
 #define Bsbs_Stmt_Cmd_MaxLen 1024
 
@@ -73,15 +80,21 @@ static void Bsbs_PreprocessCmd(Bsbs_Hashmap *hashmap, Bsbs_Stmt *stmt) {
 }
 
 static void Bsbs_ProcessCmd(Bsbs_Hashmap *hashmap, Bsbs_Stmt *stmt) {
-	Bsbs_PreprocessCmd(hashmap, stmt);
-	if (LogLevel == Bsbs_Log_Level_Verbose) printf("+ %s\n", stmt->cmd->cmd);
-	int exitcode = system(stmt->cmd->cmd);
-	if (OnError == Bsbs_On_Error_Continue) return;
-	if (exitcode == -1)
+    Bsbs_PreprocessCmd(hashmap, stmt);   
+    if (LogLevel == Bsbs_Log_Level_Verbose) printf("+ %s\n", stmt->cmd->cmd);    
+    int exitcode = system(stmt->cmd->cmd);
+    if (OnError == Bsbs_On_Error_Continue) return;
+    if (exitcode == -1)
 		Bsbs_Stmt_ErrorFmt(stmt, "system failed to execute command '%s'", stmt->cmd->cmd);
+#ifdef _WIN32
+    if (exitcode != 0)
+		Bsbs_Stmt_ErrorFmtExitCode(stmt, exitcode, "command '%s' failed with exitcode '%d'",
+								   stmt->cmd->cmd, exitcode);
+#else
 	if (WIFEXITED(exitcode) && WEXITSTATUS(exitcode) != 0) 
 		Bsbs_Stmt_ErrorFmtExitCode(stmt, exitcode, "command '%s' failed with exitcode '%d'",
 								   stmt->cmd->cmd, exitcode);
+#endif
 }
 
 void Bsbs_Emulator(Bsbs_Stmt *stmts, Bsbs_Context ctx) {
@@ -99,6 +112,7 @@ void Bsbs_Emulator(Bsbs_Stmt *stmts, Bsbs_Context ctx) {
 			Bsbs_Emulator(stmt->label->stmts, ctx);
 			break;
 		default:
+			break;
 		}	
 		stmt = stmt->next;
 	}

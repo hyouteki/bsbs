@@ -1,7 +1,22 @@
 #ifndef BSBS_STRING_H_
 #define BSBS_STRING_H_
 
+#include <stdio.h>
 #include <string.h>
+
+#ifdef _WIN32
+char *strndup(const char *str, size_t n) {
+    size_t len = strnlen(str, n);
+    char *result = (char *)malloc(sizeof(char)*(len+1));
+    if (!result) {
+		fprintf(stderr, "strndup: malloc failed");
+		return NULL;
+	}
+	strncpy(result, str, len);
+	result[len] = '\0';
+    return result;
+}
+#endif
 
 static int Bsbs_IsBlankChar(char);
 static int Bsbs_IsSpecialChar(char);

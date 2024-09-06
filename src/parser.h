@@ -9,6 +9,14 @@
 
 #define Line_Capacity 1024
 
+#ifdef _WIN32
+#define LINE_FORMAT_SPEC "%u"
+#elif __linux__
+#define LINE_FORMAT_SPEC "%zu"
+#else
+#error "error: unsupported OS; supported OS (Windows and GNU/Linux)"
+#endif
+
 typedef struct Bsbs_Stmt Bsbs_Stmt;
 
 typedef struct Bsbs_Stmt_Def {
@@ -61,15 +69,15 @@ void Bsbs_ParseFile(char *, Bsbs_Stmt **);
 void Bsbs_Stmt_Print(Bsbs_Stmt *);
 
 #define Bsbs_Stmt_Error(stmt, msg) ({printf("%s:%d:0: function: %s\n" \
-				"%s:%zu:0: error: %s\n", __FILE__, __LINE__, __FUNCTION__, \
+				"%s:"LINE_FORMAT_SPEC":0: error: %s\n", __FILE__, __LINE__, __FUNCTION__, \
 				stmt->filepath, stmt->lineno, msg); exit(EXIT_FAILURE);})
 
 #define Bsbs_Stmt_ErrorFmt(stmt, msg, ...) ({printf("%s:%d:0: function: %s\n" \
-				"%s:%zu:0: error: "msg"\n", __FILE__, __LINE__, __FUNCTION__, \
+				"%s:"LINE_FORMAT_SPEC":0: error: "msg"\n", __FILE__, __LINE__, __FUNCTION__, \
 				stmt->filepath, stmt->lineno, __VA_ARGS__); exit(EXIT_FAILURE);})
 
 #define Bsbs_Stmt_ErrorFmtExitCode(stmt, exitcode, msg, ...) \
-	({printf("%s:%d:0: function: %s\n%s:%zu:0: error: "msg"\n", __FILE__, __LINE__, \
+	({printf("%s:%d:0: function: %s\n%s:"LINE_FORMAT_SPEC":0: error: "msg"\n", __FILE__, __LINE__, \
 			 __FUNCTION__, stmt->filepath, stmt->lineno, __VA_ARGS__); exit(exitcode);})
 
 static char *Bsbs_StmtType_ToString(Bsbs_StmtType type) {
@@ -178,6 +186,7 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 					Bsbs_Stmt_Add(&sectionStmt->section->stmts, stmt);
 					break;
 				default:
+					break;
 				}
 			} else Bsbs_Stmt_Add(stmts, stmt);
 			continue;
@@ -197,6 +206,7 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 					Bsbs_Stmt_Add(&sectionStmt->section->stmts, stmt);
 					break;
 				default:
+					break;
 				}
 			} else Bsbs_Stmt_Add(stmts, stmt);
 			continue;
@@ -230,7 +240,7 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 }
 
 static void PrintIndent(size_t lineno, size_t indent) {
-	printf("%zu\t", lineno);
+	printf(LINE_FORMAT_SPEC"\t", lineno);
 	for (size_t i = 0; i < (indent<<2); ++i) printf(" ");
 }
 

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "token.h"
 #include "string.h"
 #include "helper.h"
 
@@ -19,10 +20,10 @@
 
 typedef struct Bsbs_Stmt Bsbs_Stmt;
 
-typedef struct Bsbs_Stmt_Def {
+typedef struct Bsbs_Stmt_Let {
 	char *name;
 	char *value;
-} Bsbs_Stmt_Def;
+} Bsbs_Stmt_Let;
 
 typedef struct Bsbs_Stmt_Cmd {
 	char *cmd;
@@ -41,7 +42,7 @@ typedef struct Bsbs_Stmt_Section {
 } Bsbs_Stmt_Section;
 
 typedef enum {
-	Bsbs_StmtType_Def,
+	Bsbs_StmtType_Let,
 	Bsbs_StmtType_Cmd,
 	Bsbs_StmtType_Label,
 	Bsbs_StmtType_Section
@@ -50,7 +51,7 @@ typedef enum {
 typedef struct Bsbs_Stmt {
 	Bsbs_StmtType type;
 	union {
-		Bsbs_Stmt_Def *def;
+		Bsbs_Stmt_Let *let;
 		Bsbs_Stmt_Cmd *cmd;
 		Bsbs_Stmt_Label *label;
 		Bsbs_Stmt_Section *section;
@@ -82,8 +83,8 @@ void Bsbs_Stmt_Print(Bsbs_Stmt *);
 
 static char *Bsbs_StmtType_ToString(Bsbs_StmtType type) {
 	switch (type) {
-	case Bsbs_StmtType_Def:
-		return "Bsbs_StmtType_Def";
+	case Bsbs_StmtType_Let:
+		return "Bsbs_StmtType_Let";
 	case Bsbs_StmtType_Cmd:
 		return "Bsbs_StmtType_Cmd";
 	case Bsbs_StmtType_Label:
@@ -124,18 +125,20 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 		stmt->lineno = lineno;
 		stmt->filepath = strdup(filename);
 		stmt->next= NULL;
-		if (Bsbs_StartsWith(ptr, "LABEL")) {
-			if (labelStmt != NULL) Bsbs_Stmt_Error(stmt, "found unsupported nested LABELs");
-			ptr += strlen("LABEL");
+		if (Bsbs_StartsWith(ptr, Bsbs_Token_Label)) {
+			if (labelStmt != NULL) Bsbs_Stmt_Error(stmt, "found unsupported nested labels");
+			ptr += strlen(Bsbs_Token_Label);
 			Bsbs_Trim(&ptr);
 			char *name = Bsbs_FetchUntil(&ptr, ' ');
 			Bsbs_Trim(&ptr);
-			if (!Bsbs_StartsWith(ptr, "{"))
-				Bsbs_Stmt_ErrorFmt(stmt, "expected token '{' after LABEL name '%s'", name);
-			ptr += strlen("{");
+			if (!Bsbs_StartsWith(ptr, Bsbs_Token_ScopeStart))
+				Bsbs_Stmt_ErrorFmt(stmt, "expected token '"Bsbs_Token_ScopeStart
+								   "' after label name '%s'", name);
+			ptr += strlen(Bsbs_Token_ScopeStart);
 			Bsbs_Trim(&ptr);
 			if (strlen(ptr))
-				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '{'", ptr);
+				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '"
+								   Bsbs_Token_ScopeStart"'", ptr);
 			type = Bsbs_StmtType_Label;
 			labelStmt = stmt;
 			labelStmt->type = type;
@@ -145,19 +148,21 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 			addToInnerScope = 1;
 			continue;
 		}
-		if (Bsbs_StartsWith(ptr, "SECTION")) {
+		if (Bsbs_StartsWith(ptr, Bsbs_Token_Section)) {
 			if (sectionStmt != NULL)
 				Bsbs_Stmt_Error(stmt, "found unsupported nested SECTIONs");
-			ptr += strlen("SECTION");
+			ptr += strlen(Bsbs_Token_Section);
 			Bsbs_Trim(&ptr);
 			char *name = Bsbs_FetchUntil(&ptr, ' ');
 			Bsbs_Trim(&ptr);
-			if (!Bsbs_StartsWith(ptr, "{"))
-				Bsbs_Stmt_ErrorFmt(stmt, "expected token '{' after SECTION name '%s'", name);
-			ptr += strlen("{");
+			if (!Bsbs_StartsWith(ptr, Bsbs_Token_ScopeStart))
+				Bsbs_Stmt_ErrorFmt(stmt, "expected token '"Bsbs_Token_ScopeStart
+								   "' after section name '%s'", name);
+			ptr += strlen(Bsbs_Token_ScopeStart);
 			Bsbs_Trim(&ptr);
 			if (strlen(ptr))
-				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '{'", ptr);
+				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '"
+								   Bsbs_Token_ScopeStart"'", ptr);
 			type = Bsbs_StmtType_Section;
 			sectionStmt = stmt;
 			sectionStmt->type = type;
@@ -167,16 +172,16 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 			addToInnerScope = 1;
 			continue;
 		}
-		if (Bsbs_StartsWith(ptr, "DEF")) {
-			ptr += strlen("DEF");
+		if (Bsbs_StartsWith(ptr, Bsbs_Token_Let)) {
+			ptr += strlen(Bsbs_Token_Let);
 			Bsbs_Trim(&ptr);
-			stmt->type = Bsbs_StmtType_Def;
-			stmt->def = (Bsbs_Stmt_Def *)malloc(sizeof(Bsbs_Stmt_Def));
-			stmt->def->name = Bsbs_FetchUntil(&ptr, '=');
-			Bsbs_Trim(&stmt->def->name);
+			stmt->type = Bsbs_StmtType_Let;
+			stmt->let = (Bsbs_Stmt_Let *)malloc(sizeof(Bsbs_Stmt_Let));
+			stmt->let->name = Bsbs_FetchUntil(&ptr, '=');
+			Bsbs_Trim(&stmt->let->name);
 			Bsbs_RemoveSpecial(&ptr);
 			Bsbs_Trim(&ptr);
-			stmt->def->value = strdup(ptr);
+			stmt->let->value = strdup(ptr);
 			if (addToInnerScope) {
 				switch (type) {
 				case Bsbs_StmtType_Label:
@@ -191,8 +196,8 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 			} else Bsbs_Stmt_Add(stmts, stmt);
 			continue;
 		}
-		if (Bsbs_StartsWith(ptr, "RUN")) {
-			ptr += strlen("RUN");
+		if (Bsbs_StartsWith(ptr, Bsbs_Token_Run)) {
+			ptr += strlen(Bsbs_Token_Run);
 			Bsbs_Trim(&ptr);
 			stmt->type = Bsbs_StmtType_Cmd;
 			stmt->cmd = (Bsbs_Stmt_Cmd *)malloc(sizeof(Bsbs_Stmt_Cmd));
@@ -211,11 +216,12 @@ void Bsbs_ParseFile(char *filename, Bsbs_Stmt **stmts) {
 			} else Bsbs_Stmt_Add(stmts, stmt);
 			continue;
 		}  
-		if (Bsbs_StartsWith(ptr, "}")) {
-			ptr += strlen("}");
+		if (Bsbs_StartsWith(ptr, Bsbs_Token_ScopeEnd)) {
+			ptr += strlen(Bsbs_Token_ScopeEnd);
 			Bsbs_Trim(&ptr);
 			if (strlen(ptr))
-				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '}'", ptr);
+				Bsbs_Stmt_ErrorFmt(stmt, "invalid token '%s' after token '"
+								   Bsbs_Token_ScopeEnd"'", ptr);
 			switch (type) {
 			case Bsbs_StmtType_Label:
 				labelStmt->label->endLineno = lineno;
@@ -249,23 +255,23 @@ static void Bsbs_Stmt_Print_(Bsbs_Stmt *stmts, size_t indent) {
 	while (stmt) {
 		PrintIndent(stmt->lineno, indent);
 		switch (stmt->type) {
-		case Bsbs_StmtType_Def:
-			printf("DEF %s = %s\n", stmt->def->name, stmt->def->value);
+		case Bsbs_StmtType_Let:
+			printf(Bsbs_Token_Let" %s = %s\n", stmt->let->name, stmt->let->value);
 			break;
 		case Bsbs_StmtType_Cmd:
-			printf("RUN %s\n", stmt->cmd->cmd);
+			printf(Bsbs_Token_Run" %s\n", stmt->cmd->cmd);
 			break;
 		case Bsbs_StmtType_Label:
-			printf("LABEL %s {\n", stmt->label->name);
+			printf(Bsbs_Token_Label" %s "Bsbs_Token_ScopeStart"\n", stmt->label->name);
 			Bsbs_Stmt_Print_(stmt->label->stmts, indent+1);
 			PrintIndent(stmt->label->endLineno, indent);
-			printf("}\n");
+			printf(Bsbs_Token_ScopeEnd"\n");
 			break;
 		case Bsbs_StmtType_Section:
-			printf("SECTION %s {\n", stmt->section->name);
+			printf(Bsbs_Token_Section" %s "Bsbs_Token_ScopeStart"\n", stmt->section->name);
 			Bsbs_Stmt_Print_(stmt->section->stmts, indent+1);
 			PrintIndent(stmt->section->endLineno, indent);
-			printf("}\n");
+			printf(Bsbs_Token_ScopeEnd"\n");
 			break;
 		}
 		stmt = stmt->next;

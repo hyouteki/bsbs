@@ -35,14 +35,14 @@ typedef struct Bsbs_Context {
 } Bsbs_Context;
 
 static void Bsbs_ProcessKnownDef(Bsbs_Stmt *);
-static void Bsbs_ProcessDef(Bsbs_Hashmap *, Bsbs_Stmt *);
+static void Bsbs_ProcessLet(Bsbs_Hashmap *, Bsbs_Stmt *);
 static void Bsbs_PreprocessCmd(Bsbs_Hashmap *, Bsbs_Stmt *);
 static void Bsbs_ProcessCmd(Bsbs_Hashmap *, Bsbs_Stmt *);
 
 void Bsbs_Emulator(Bsbs_Stmt *, Bsbs_Context);
 
 static void Bsbs_ProcessKnownDef(Bsbs_Stmt *stmt) {
-	char *key = stmt->def->name, *val = stmt->def->value;
+	char *key = stmt->let->name, *val = stmt->let->value;
 	if (strcmp(key, "Log") == 0) {
 		if (strcmp(val, "None") == 0) LogLevel = Bsbs_Log_Level_None;
 		else if (strcmp(val, "Verbose") == 0) LogLevel = Bsbs_Log_Level_Verbose;
@@ -55,12 +55,12 @@ static void Bsbs_ProcessKnownDef(Bsbs_Stmt *stmt) {
 	}
 }
 
-static void Bsbs_ProcessDef(Bsbs_Hashmap *hashmap, Bsbs_Stmt *stmt) {
-	if (Bsbs_Hashmap_Find(hashmap, stmt->def->name))
-		Bsbs_Stmt_ErrorFmt(stmt, "variable '%s' already defined", stmt->def->name);
-	Bsbs_Hashmap_Insert(hashmap, stmt->def->name, stmt->def->value);
-	if (LogLevel == Bsbs_Log_Level_Verbose) printf("+ %s = %s\n", stmt->def->name,
-												   stmt->def->value);
+static void Bsbs_ProcessLet(Bsbs_Hashmap *hashmap, Bsbs_Stmt *stmt) {
+	if (Bsbs_Hashmap_Find(hashmap, stmt->let->name))
+		Bsbs_Stmt_ErrorFmt(stmt, "variable '%s' already defined", stmt->let->name);
+	Bsbs_Hashmap_Insert(hashmap, stmt->let->name, stmt->let->value);
+	if (LogLevel == Bsbs_Log_Level_Verbose) printf("+ %s = %s\n", stmt->let->name,
+												   stmt->let->value);
 	Bsbs_ProcessKnownDef(stmt);
 }
 
@@ -101,8 +101,8 @@ void Bsbs_Emulator(Bsbs_Stmt *stmts, Bsbs_Context ctx) {
 	Bsbs_Stmt *stmt = stmts;
 	while (stmt) {
 		switch (stmt->type) {
-		case Bsbs_StmtType_Def:
-			Bsbs_ProcessDef(&ctx.hashmap, stmt);
+		case Bsbs_StmtType_Let:
+			Bsbs_ProcessLet(&ctx.hashmap, stmt);
 			break;
 		case Bsbs_StmtType_Cmd:
 			Bsbs_ProcessCmd(&ctx.hashmap, stmt);

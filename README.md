@@ -2,20 +2,20 @@
 Minimal Build System implemented in C.
 
 ``` makefile
-DEF Log = Verbose
-DEF CC = gcc
-DEF CFLAGS = -Wall -Wextra
-DEF BUILD_NAME = bsbs
+let Log = Verbose
+let CC = gcc
+let CFLAGS = -Wall -Wextra
+let BUILD_NAME = hello
 
-LABEL build {
-    RUN $CC main.c -o $BUILD_NAME $CFLAGS
-}
+label build in
+    run $CC main.c -o $BUILD_NAME $CFLAGS
+end
 
-LABEL hello {
-    RUN $CC hello.c -o hello $CFLAGS
-    RUN ./hello
-    RUN rm -r hello
-}
+label hello in
+    run $CC hello.c -o hello $CFLAGS
+    run ./hello
+    run rm -r hello
+end
 ```
 
 ## Quick Start
